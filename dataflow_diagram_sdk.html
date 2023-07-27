@@ -1,0 +1,286 @@
+<h2 id="dataflow-diagram-sdk">Dataflow Diagram SDK</h2>
+<p>This following describes the software development kit (SDK) enabling iOS applications to use dataflow diagrams that implement specific algorithms to process timestamped sensor data as for example generated a motion capture system (see our <a href="https://github.com/Proavatar/MotionCaptureSDK.git">Motion Capture SDK</a>) and calculate specific output values.</p>
+<blockquote>
+<p>A detailed explanation of the dataflow programming method, can be found <a href="https://proavatar.io/dataflow/">here</a>.</p>
+</blockquote>
+<p>The SDK is offered as a Swift Package that implements the following functionality:</p>
+<ul>
+<li><a href="#creating-a-dataflow-diagram">Create a new dataflow diagram and fill it with a specified algorithm</a>.</li>
+<li><a href="#dataflow-diagram-information">Retrieve information from the dataflow diagram</a>.</li>
+<li><a href="#changing-diagram-constants">Changing the diagram constants</a>.</li>
+<li><a href="#diagram-update">Update the inputs of a diagram</a>.</li>
+<li><a href="#resetting-the-diagram">Reset the temporal state of the dataflow diagram</a>.</li>
+</ul>
+<p>In the following this functionality is described in more detail.</p>
+<h2 id="installing-the-sdk">Installing the SDK</h2>
+<p>The SDK is available as a Swift package and can be installed as part of your Xcode Swift project.</p>
+<p>The SDK is named “DataflowDiagramSDK” and is available as a Swift package via GitHub under the URL:
+<a href="https://github.com/Proavatar/DataflowDiagramSDK.git">https://github.com/Proavatar/DataflowDiagramSDK.git</a></p>
+<p>To install the “DataflowDiagram” Swift package in your project, perform the following steps in Xcode:</p>
+<ol>
+<li>In the Project Editor select your project.</li>
+<li>Select the tab “Package Dependencies”.</li>
+<li>Click the + button.</li>
+<li>In the search bar add the URL to the GitHub repository.</li>
+<li>Press the “Add Package” button.</li>
+</ol>
+<p>The package will be downloaded and added to your project.
+All required functionality is implemented in the <code>DataflowDiagram</code> class. To use this class, place the following import in your file:</p>
+<pre><code class="lang-swift"><span class="hljs-keyword">import</span> DataflowDiagramSDK
+</code></pre>
+<p>By default the SDK can be used without a license, but only allows loading diagrams with a maximum of two input streams. To remove this limitation, a license is required.</p>
+<blockquote>
+<p>To request a license, please contact <a href="mailto:sales@proavatar.io?subject=Dataflow%20Diagram%20SDK%20license%20request">sales@proavatar.io</a>.</p>
+</blockquote>
+<h2 id="dataflow-diagram-i-o">Dataflow diagram I/O</h2>
+<p>Consider an algorithm that takes one or more sensor data streams as <em>input</em> and calculates some kind of <em>output</em>. Such an algorithm is constructed - or implemented - by creating a <em>dataflow diagram</em> that uses <em>input streams</em> and a number of interconnected <em>functions</em> to calculate the value of one or more <em>variable outputs</em> of specific types. These can then be used by a connected reporting system like a graphical user interface (GUI) for example. Any settings of the diagram – that can be changed by the executing application – are implemented by using <em>constants</em>.</p>
+<p>The architecture of an algorithm is given in the figure below.</p>
+<p><img src="https://docs.google.com/drawings/d/e/2PACX-1vSvBzU94EUyZuSgtF89ilkc0b4H9OGCylEuF5Fz3cElTkvVr_sJM2TJnrOXAU-hm-K4ul-KwO1VXV1r/pub?w=861&amp;h=319" alt="Algorithm architecture"></p>
+<p>For the dataflow diagram I/O two structures are defined:</p>
+<pre><code class="lang-swift"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">DataflowDiagramInput</span></span>
+{
+    <span class="hljs-keyword">let</span> timestamp : TimeInterval
+    var updates   : [<span class="hljs-built_in">String</span>:Any]
+}
+
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">DataflowDiagramOutput</span></span>
+{
+    <span class="hljs-keyword">let</span> timestamp : TimeInterval
+    var outputs   : [<span class="hljs-built_in">String</span>:Any]
+}
+</code></pre>
+<h2 id="variable-types">Variable types</h2>
+<p>In a dataflow diagram several timestamped variables can be used. For example, the orientation of a segment is a timestamped orientation and the position of a joint is a timestamped vector.
+In the following table the variable types are defined that can be used in a dataflow diagram.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Name</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Float</td>
+<td style="text-align:left"><code>Double</code></td>
+<td style="text-align:left">Floating point value, used for angles and other values.</td>
+</tr>
+<tr>
+<td style="text-align:left">Integer</td>
+<td style="text-align:left"><code>Int</code></td>
+<td style="text-align:left">Integer value, used for indices and numbers.</td>
+</tr>
+<tr>
+<td style="text-align:left">Vector</td>
+<td style="text-align:left"><code>simd_double3</code></td>
+<td style="text-align:left">A 3D position (x,y,z).</td>
+</tr>
+<tr>
+<td style="text-align:left">Boolean</td>
+<td style="text-align:left"><code>Bool</code></td>
+<td style="text-align:left">Logical value, i.e. true or false.</td>
+</tr>
+<tr>
+<td style="text-align:left">Orientation</td>
+<td style="text-align:left"><code>simd_quatd</code></td>
+<td style="text-align:left">An orientation, expressed as a quaternion (x,y,z,w).</td>
+</tr>
+<tr>
+<td style="text-align:left">Sequence</td>
+<td style="text-align:left"><code>[(t:Double,f:Double)]</code></td>
+<td style="text-align:left">An array of timestamped floats, i.e. [(t<sub>0</sub> , f<sub>0</sub>) , ... , (t<sub>N-1</sub> , f<sub>N-1)</sub>].</td>
+</tr>
+<tr>
+<td style="text-align:left">String</td>
+<td style="text-align:left"><code>String</code></td>
+<td style="text-align:left">A piece of text.</td>
+</tr>
+<tr>
+<td style="text-align:left">Float array</td>
+<td style="text-align:left"><code>[Double]</code></td>
+<td style="text-align:left">A collection of floats, i.e. [f<sub>0</sub> , ... , f<sub>N-1</sub>].</td>
+</tr>
+<tr>
+<td style="text-align:left">Integer array</td>
+<td style="text-align:left"><code>[Integer]</code></td>
+<td style="text-align:left">A collection of integers, i.e. [i<sub>0</sub> , ... , i<sub>N-1</sub>].</td>
+</tr>
+<tr>
+<td style="text-align:left">Boolean array</td>
+<td style="text-align:left"><code>[Boolean]</code></td>
+<td style="text-align:left">A collection of booleans, i.e. [b<sub>0</sub> , ... , b<sub>N-1</sub>].</td>
+</tr>
+<tr>
+<td style="text-align:left">String array</td>
+<td style="text-align:left"><code>[String]</code></td>
+<td style="text-align:left">A collection of strings, i.e. [$<sub>0</sub> , ... , $<sub>N-1</sub>].</td>
+</tr>
+<tr>
+<td style="text-align:left">Vector array</td>
+<td style="text-align:left"><code>[Vector]</code></td>
+<td style="text-align:left">A collection of vectors, i.e. [v<sub>0</sub> , ... , v<sub>N-1</sub>].</td>
+</tr>
+<tr>
+<td style="text-align:left">Orientation array</td>
+<td style="text-align:left"><code>[Orientation]</code></td>
+<td style="text-align:left">A collection of orientations, i.e. [q<sub>0</sub> , ... , q<sub>N-1</sub>].</td>
+</tr>
+<tr>
+<td style="text-align:left">Sequence array</td>
+<td style="text-align:left"><code>[Sequence]</code></td>
+<td style="text-align:left">A collection of sequences, i.e. [s<sub>0</sub> , ... , s<sub>N-1</sub>].</td>
+</tr>
+</tbody>
+</table>
+<p>Import <code>simd</code> for using the <code>simd_double3</code> and <code>simd_quatd</code> types.</p>
+<h2 id="creating-a-dataflow-diagram">Creating a dataflow diagram</h2>
+<p>Before a dataflow diagram can be used to run a specific algorithm, an instance of the <code>DataflowDiagram</code> class must be created.</p>
+<h3 id="update-protocol">Update protocol</h3>
+<p>The dataflow diagram will indicate the updates of the variable outputs using the <code>VariableOutputUpdatesReceiver</code> protocol which has two functions.</p>
+<pre><code class="lang-swift"><span class="hljs-class"><span class="hljs-keyword">protocol</span> <span class="hljs-title">VariableOutputUpdatesReceiver</span> : <span class="hljs-title">AnyObject</span>
+</span>{
+    <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">newVariableOutputUpdates</span><span class="hljs-params">(<span class="hljs-number">_</span> output: DataflowDiagramOutput )</span></span>
+    <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">allUpdatesProcessed</span><span class="hljs-params">(<span class="hljs-number">_</span> outputs: [DataflowDiagramOutput] )</span></span>
+}
+</code></pre>
+<p>As such, any object in the application that is going to process these updates needs to comply with this protocol and implement these functions.</p>
+<h3 id="instantiation">Instantiation</h3>
+<p>To instantiate a dataflow diagram the initialization method takes the reference to the object in the application that complies with the <code>VariableOutputUpdatesReceiver</code> protocol.</p>
+<pre><code class="lang-swift">DataflowDiagram( <span class="hljs-name">variableOutputUpdatesReceiver</span>: VariableOutputUpdatesReceiver? = <span class="hljs-literal">nil</span> )
+</code></pre>
+<p>This creates an empty dataflow diagram which needs to be filled by supplying the JSON representation of the diagram as described in the next section.</p>
+<h3 id="license-activation">License activation</h3>
+<p>By default, without a license the SDK can be used with a maximum of two input streams. To remove this limitation, a commercial license is required.
+To activate the license, the <code>activateLicense()</code> method must be called.</p>
+<pre><code class="lang-swift"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">activateLicense</span><span class="hljs-params">( licenseKey: String, bundleId: String )</span></span>
+</code></pre>
+<p>To obtain a license, please contact sales@proavatar.io.</p>
+<h3 id="fill-the-diagram">Fill the diagram</h3>
+<p>The contents of a dataflow diagram is specified by a JSON string which can be stored in a standard text file or retrieved via an API to an online cloud platform. As such, once the application retrieves the JSON string, it can be used to fill the dataflow diagram by calling the <code>read()</code> method.</p>
+<pre><code class="lang-swift"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">read</span><span class="hljs-params">( from jsonString: String, replace: Bool = <span class="hljs-literal">true</span> )</span></span> -&gt; <span class="hljs-type">Bool</span>
+</code></pre>
+<p>When a valid JSON string is supplied, the function returns <code>true</code> otherwise the JSON string contains an error.
+The function also has an optional parameter replace which by default is <code>true</code> which means that any diagram currently present will be overridden. However, when this value is set to <code>false</code>, the JSON string is used to extend the diagram. This could be used to combine two diagrams.</p>
+<h2 id="dataflow-diagram-information">Dataflow diagram information</h2>
+<p>When a diagram is filled (see “<a href="#fill-the-diagram">Fill the diagram</a>”), it can be important for the application to know which input streams are used and what variable outputs the diagram can calculate. The diagram can also contain some manual lines which might contain usage information or the type of exercises that can be processed by the diagram for example.</p>
+<h3 id="used-input-streams">Used input streams</h3>
+<p>Which input streams the diagram uses is important information for the application to know which information must be supplied. To retrieve the used input streams the <code>getInputStreams()</code> method of the dataflow diagram must be called.</p>
+<pre><code class="lang-swift">func getInputStreams() -&gt; [(<span class="hljs-keyword">label</span>:<span class="hljs-keyword">String</span>, typeString:<span class="hljs-keyword">String</span>)]
+</code></pre>
+<p>The output of the function is an array of tuples containing the label of the input stream and its type as described in “<a href="#varaible-types">Variable types</a>” (e.g. “Float”, “Integer”, “Vector”, et cetera).</p>
+<h3 id="specified-variable-outputs">Specified variable outputs</h3>
+<p>To prepare the application for the outputs the diagram can calculate, it can be helpful to have the ability to retrieve the list of specified outputs. To retrieve this list, the <code>getVariableOutputs()</code> method of the dataflow diagram must be called.</p>
+<pre><code class="lang-swift">func getVariableOutputs() -&gt; [(<span class="hljs-keyword">label</span>:<span class="hljs-keyword">String</span>, typeString:<span class="hljs-keyword">String</span>)]
+</code></pre>
+<p>The output of the function is an array of tuples containing the label of the output variable and its type as described in “<a href="#varaible-types">Variable types</a>” (e.g. “Float”, “Integer”, “Vector”, et cetera).</p>
+<h3 id="get-manual-lines">Get manual lines</h3>
+<p>The dataflow diagram could have some manual lines which might contain usage information which might be useful information for the application. To obtain these lines the <code>getManualLine()</code> method of the dataflow diagram must be called.</p>
+<pre><code class="lang-swift">func getManualLines<span class="hljs-function"><span class="hljs-params">()</span> -&gt;</span> [String]
+</code></pre>
+<h3 id="create-json-representation">Create JSON representation</h3>
+<p>As described in “<a href="#fill-the-diagram">Fill the diagram</a>”, a dataflow diagram is specified by means of a JSON string. In order for the application to save a diagram or forward it, the JSON string can be created by calling the <code>createJSON()</code> method of the dataflow diagram.</p>
+<pre><code class="lang-swift"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">createJSON</span><span class="hljs-params">()</span> -&gt; <span class="hljs-title">String</span></span>
+</code></pre>
+<h2 id="changing-diagram-constants">Changing diagram constants</h2>
+<p>In most cases constants are used in a diagram to indicate a setting for a specific function, like defining the vertical axis or an integer for a buffer size. However, there are also constants that can be considered as parameters for the algorithm, indicating for example the required time to complete a cycle or thresholds for joint angles, etc. This chapter describes the functionality by which the application can change these constants.</p>
+<h3 id="specified-constants">Specified constants</h3>
+<p>To be able to know which constants are used in the diagram, the <code>getConstants()</code> method of the dataflow diagram can be called.</p>
+<pre><code class="lang-swift"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">getConstants</span><span class="hljs-params">()</span> -&gt; [<span class="hljs-params">(label:String, value:Any)</span>]</span>
+</code></pre>
+<p>In a diagram it is not mandatory to specify a label for each constant. As such, there might be constants which have no label. The function however will only return those constants for which a label is defined. The labels of the constants don’t have to be unique. As such a label could be present multiple times in the returned array.</p>
+<h3 id="change-constant-value">Change constant value</h3>
+<p>To be able to change the value of a constant, the <code>setConstant()</code> method of the dataflow diagram can be called.</p>
+<pre><code class="lang-swift"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">setConstant</span><span class="hljs-params">( label:String, newValue:Any )</span></span>
+</code></pre>
+<p>As mentioned above, there can be constants with the same label. Calling the function will change the value for all constants with the specified label. The constant will only be set when the type of the supplied <code>newValue</code> parameter matches that of the constant (i.e. as returned by the <code>getConstants()</code> method described in &quot;<a href="#specified-constants">Specified constants</a>&quot;).</p>
+<h2 id="diagram-update">Diagram update</h2>
+<p>As described in “<a href="#dataflow-diagram-io">Dataflow diagram I/O</a>”, the application must supply the updates for the diagram which it can use to calculate the outputs.</p>
+<h3 id="update-the-input-streams">Update the input streams</h3>
+<p>Whenever the application has updated information, it needs to create a <code>DataflowDiagramInput</code> struct variable and set the <code>timestamp</code> field, fill the <code>updates</code> dictionary field with the names of the input streams in the diagram. The created variable is then used in a call of the <code>updateInputStreams()</code> method of the dataflow diagram.</p>
+<pre><code class="lang-swift"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">updateInputStreams</span><span class="hljs-params">( diagramInput : DataflowDiagramInput  )</span></span>
+</code></pre>
+<p>When the <code>updates</code> dictionary contains names that are not part of the diagram&#39;s input streams, these are simply ignored.</p>
+<h3 id="receive-updated-variable-outputs">Receive updated variable outputs</h3>
+<p>When the update results in one or more updates for the specified variable outputs, the delegate&#39;s <code>newVariableOutputUpdates()</code> protocol function will be called as described in “<a href="#update-protocol">Update protocol</a>” and repeated below for reference.</p>
+<pre><code class="lang-swift"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">newVariableOutputUpdates</span><span class="hljs-params">(<span class="hljs-number">_</span> output: DataflowDiagramOutput )</span></span>
+</code></pre>
+<h3 id="process-an-array-of-updates">Process an array of updates</h3>
+<p>When processing for example a file, the processing can be performed in one batch. To do this, the application needs to create an array of <code>DataflowDiagramInput</code> structs and for each element in this array set the <code>timestamp</code> field and fill the <code>updates</code> dictionary field with the names of the input streams in the diagram. The created array is then used in a call of the <code>processAllUpdates()</code> method of the dataflow diagram.</p>
+<pre><code class="lang-swift"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">processAllUpdates</span><span class="hljs-params">( diagramInputs: [DataflowDiagramInput] )</span></span>
+</code></pre>
+<p>The processing will be performed in the background and when finished, the delegate&#39;s <code>allUpdatesProcessed()</code> protocol function will be called as described in “<a href="#update-protocol">Update protocol</a>” and repeated below for reference.</p>
+<pre><code class="lang-swift"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">allUpdatesProcessed</span><span class="hljs-params">(<span class="hljs-number">_</span> outputs: [DataflowDiagramOutput] )</span></span>
+</code></pre>
+<h3 id="read-input-from-a-jsonl-file">Read input from a JSONL file</h3>
+<p>The SDK offers a functionality to process data when it is available as JSON lines (i.e. using newline &#39;\n&#39; character as line separation). An example is given below.</p>
+<pre><code class="lang-json">{<span class="hljs-attr">"timestamp"</span>:<span class="hljs-number">12.34</span>,<span class="hljs-attr">"name"</span>:<span class="hljs-string">"Left upper leg"</span>,<span class="hljs-attr">"orientationValue"</span>:{<span class="hljs-attr">"x"</span>:<span class="hljs-number">0.2345</span>,<span class="hljs-attr">"y"</span>:<span class="hljs-number">0.1234</span>,<span class="hljs-attr">"z"</span>:<span class="hljs-number">0.123</span>,<span class="hljs-attr">"w"</span>:<span class="hljs-number">0.92</span>}}
+{<span class="hljs-attr">"timestamp"</span>:<span class="hljs-number">12.34</span>,<span class="hljs-attr">"name"</span>:<span class="hljs-string">"Left lower leg"</span>,<span class="hljs-attr">"orientationValue"</span>:{<span class="hljs-attr">"x"</span>:<span class="hljs-number">0.1234</span>,<span class="hljs-attr">"y"</span>:<span class="hljs-number">0.0221</span>,<span class="hljs-attr">"z"</span>:<span class="hljs-number">0.002</span>,<span class="hljs-attr">"w"</span>:<span class="hljs-number">0.82</span>}}
+{<span class="hljs-attr">"timestamp"</span>:<span class="hljs-number">12.54</span>,<span class="hljs-attr">"name"</span>:<span class="hljs-string">"Left upper leg"</span>,<span class="hljs-attr">"orientationValue"</span>:{<span class="hljs-attr">"x"</span>:<span class="hljs-number">0.1345</span>,<span class="hljs-attr">"y"</span>:<span class="hljs-number">0.4234</span>,<span class="hljs-attr">"z"</span>:<span class="hljs-number">0.163</span>,<span class="hljs-attr">"w"</span>:<span class="hljs-number">0.92</span>}}
+{<span class="hljs-attr">"timestamp"</span>:<span class="hljs-number">12.54</span>,<span class="hljs-attr">"name"</span>:<span class="hljs-string">"Left lower leg"</span>,<span class="hljs-attr">"orientationValue"</span>:{<span class="hljs-attr">"x"</span>:<span class="hljs-number">0.1334</span>,<span class="hljs-attr">"y"</span>:<span class="hljs-number">0.0221</span>,<span class="hljs-attr">"z"</span>:<span class="hljs-number">0.002</span>,<span class="hljs-attr">"w"</span>:<span class="hljs-number">0.42</span>}}
+</code></pre>
+<p>The JSON schema for a line in a data file is given below.</p>
+<pre><code class="lang-json">{
+  <span class="hljs-attr">"$schema"</span>: <span class="hljs-string">"http://json-schema.org/draft-07/schema#"</span>,
+  <span class="hljs-attr">"type"</span>: <span class="hljs-string">"object"</span>,
+  <span class="hljs-attr">"properties"</span>: {
+    <span class="hljs-attr">"timestamp"</span>: {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"number"</span>},
+    <span class="hljs-attr">"name"</span>: {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"string"</span>},
+    <span class="hljs-attr">"floatValue"</span>: {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"number"</span>},
+    <span class="hljs-attr">"integerValue"</span>: {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"integer"</span>},
+    <span class="hljs-attr">"vectorValue"</span>: {
+      <span class="hljs-attr">"type"</span>: <span class="hljs-string">"object"</span>,
+      <span class="hljs-attr">"properties"</span>: {
+        <span class="hljs-attr">"x"</span>: {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"number"</span>},
+        <span class="hljs-attr">"y"</span>: {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"number"</span>},
+        <span class="hljs-attr">"z"</span>: {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"number"</span>}
+      },
+      <span class="hljs-attr">"required"</span>: [<span class="hljs-string">"x"</span>, <span class="hljs-string">"y"</span>, <span class="hljs-string">"z"</span>]
+    },
+    <span class="hljs-attr">"booleanValue"</span>: {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"boolean"</span>},
+    <span class="hljs-attr">"orientationValue"</span>: {
+      <span class="hljs-attr">"type"</span>: <span class="hljs-string">"object"</span>,
+      <span class="hljs-attr">"properties"</span>: {
+        <span class="hljs-attr">"x"</span>: {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"number"</span>},
+        <span class="hljs-attr">"y"</span>: {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"number"</span>},
+        <span class="hljs-attr">"z"</span>: {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"number"</span>},
+        <span class="hljs-attr">"w"</span>: {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"number"</span>}
+      },
+      <span class="hljs-attr">"required"</span>: [<span class="hljs-string">"x"</span>, <span class="hljs-string">"y"</span>, <span class="hljs-string">"z"</span>, <span class="hljs-string">"w"</span>]
+    },
+    <span class="hljs-attr">"stringValue"</span>: {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"string"</span>}
+  },
+  <span class="hljs-attr">"required"</span>: [<span class="hljs-string">"timestamp"</span>, <span class="hljs-string">"name"</span>]
+}
+</code></pre>
+<p>To process a JSONL string (as read from a file), the <code>readDataflowDiagramInputs()</code> function can be called.</p>
+<pre><code class="lang-swift">func readDataflowDiagramInputs<span class="hljs-function"><span class="hljs-params">( <span class="hljs-keyword">from</span> jsonLines: String )</span> -&gt;</span> [DataflowDiagramInput]
+</code></pre>
+<p>The returned array can then be used in a call to the <code>processAllUpdates()</code> method as described in &quot;<a href="#process-an-array-of-updates">Process an array of updates</a>&quot;.</p>
+<h3 id="write-to-jsonl-file">Write to JSONL file</h3>
+<p>When an array of diagram inputs is available (for example after a recording), these can be converted into a JSONL file which can be read in later as described in &quot;<a href="#read-input-from-a-jsonl-file">Read input from a JSONL file</a>&quot;. This is done by calling the <code>createJsonLines()</code> function.</p>
+<pre><code class="lang-swift">func createJsonLines<span class="hljs-function"><span class="hljs-params">( <span class="hljs-keyword">from</span> dataflowDiagramInputs : [DataflowDiagramInput] )</span> -&gt;</span> String
+</code></pre>
+<h3 id="hide-variable-outputs">Hide variable outputs</h3>
+<p>By default, all updated variable outputs are offered to the application via the <code>newVariableOutputUpdates()</code> protocol function (see &quot;<a href="#receive-updated-variable-outputs">Receive updated variable outputs</a>&quot;). However, as it is possible to have variable outputs that have linked input streams (to allow for diagram loops), it can be preferred that some variable outputs are hidden in order for their updates not to be forwarded to the application, but can still be used by linked input streams. To control the visibility of a variable output, the <code>setVariableOutputHidden()</code> method can be called.</p>
+<pre><code class="lang-swift"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">setVariableOutputHidden</span><span class="hljs-params">( label:String, hidden:Bool )</span></span>
+</code></pre>
+<h3 id="disable-forwarding-of-input-streams">Disable forwarding of input streams</h3>
+<p>By default, all updates of input streams are also forwarded as output of the diagram and are offered to the application via the  <code>newVariableOutputUpdates()</code> protocol function (see &quot;<a href="#receive-update-variable-outputs">Receive updated variable outputs</a>&quot;). This can for example be used when using animation of segments. This can be disabled by calling the <code>setInputStreamForwarding()</code> method.</p>
+<pre><code class="lang-swift"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">setInputStreamForwarding</span><span class="hljs-params">( label:String, forwarding:Bool )</span></span>
+</code></pre>
+<p>Note that the application could use the type (see “<a href="#variable-types">Variable types</a>”) to determine how to use or present it.</p>
+<h2 id="resetting-the-diagram">Resetting the diagram</h2>
+<p>While the inputs are updated, the internal temporal state of the diagram changes as it can contain buffers or the update for some functions might be pending because not all the inputs are updated yet.</p>
+<p>To be able to remove any history from the diagram and set the diagram to a state as if no update occurred yet, the <code>reset()</code> method of the dataflow diagram can be called.</p>
+<pre><code class="lang-swift"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">reset</span><span class="hljs-params">()</span></span>
+</code></pre>
+<h2 id="string-representations">String representations</h2>
+<h3 id="get-the-string-from-value">Get the string from value</h3>
+<p>To get the string representation of a dataflow diagram output value, the <code>getValueString()</code> function can be called.</p>
+<pre><code class="lang-swift"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">getValueString</span><span class="hljs-params">(<span class="hljs-number">_</span> value : Any )</span></span> -&gt; <span class="hljs-type">String</span>
+</code></pre>
+<h3 id="set-the-value-from-a-string">Set the value from a string</h3>
+<p>To set the value from a string, the <code>func setValueFromString()</code> function can be called.</p>
+<pre><code class="lang-swift"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">setValueFromString</span><span class="hljs-params">( value: <span class="hljs-keyword">inout</span> Any, string: String )</span></span>
+</code></pre>
